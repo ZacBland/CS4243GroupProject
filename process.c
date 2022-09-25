@@ -1,4 +1,8 @@
 /*
+Group B
+Blake Barton
+blake.barton@okstate.edu
+9/25/22
 
 First draft of process.c. This file contains:
 
