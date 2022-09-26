@@ -23,10 +23,11 @@ typedef char* String;
 char bookInfo[703][6][210];
 char amazonBestsellers[550][7][210];
 
+//readFile method that reads specified input file and stores in static-sized array
 void readFile(char inputFile[25], int cols) {
 
     char (*array)[cols][210];
-    if (cols == 6) array = bookInfo;
+    if (cols == 6) array = bookInfo; //determines which matrix to store in
     else array = amazonBestsellers;
 
     FILE* f;
@@ -43,36 +44,27 @@ void readFile(char inputFile[25], int cols) {
     int col = 0;
 
     char str[210];
+    //do-while loop reads file character by character, parses it, and stores whole column in array
     do {
         ch = fgetc(f);
         if (ch == '"') {
-            //printf("TEST 1\n");
-            count = count + 1;
+            count = count + 1; //counter to tell if reading inside a quotation so it will treat commas as normal characters
             strncat(str, &ch, 1);
         } else if (ch == ',') {
-            //printf("TEST 2\n");
-            if (count % 2 == 1) {
+            if (count % 2 == 1) { //comma used in quotation
                 strncat(str, &ch, 1);
-            } else {
-                //printf("%s\n", str);
+            } else { //comma used to separate columns
                 sprintf(array[row][col], "%s", str);
-                //printf("%s\n", bookInfo[row][col]);
-                //printf("TEST $\n");
                 memset(str, 0, 210);
                 col++;
             }
-        } else if (ch == '\n') {
-            //printf("TEST 3\n");
-            //printf("%s\n", str);
+        } else if (ch == '\n') { //end of row
             sprintf(array[row][col], "%s", str);
-            //printf("%s\n", bookInfo[row][col]);
             memset(str, 0, 210);
             col = 0;
             row++;
-        } else {
-            //printf("TEST 4\n");
+        } else { //normal character
             strncat(str, &ch, 1);
-           //printf("TEST 5\n");
         }
     } while (ch != EOF);
 
