@@ -1,0 +1,4 @@
+bookInfo.txt,amazonBestsellers.txt
+Book category,User rating
+Star rating,Year
+Stock,Genre
