@@ -29,11 +29,11 @@ Execute with: ./a.out
 #include <errno.h>
 #include <mqueue.h>
 
-#define QUEUE_NAME "/parent"
+#define QUEUE_NAME "/Q1"
 #define PERMISSIONS 0660
-#define MAX_MESSAGES 10
-#define MAX_MSG_SIZE 256
-#define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
+#define MAX_MESSAGES 2
+#define MAX_MSG_SIZE 1400
+#define MSG_BUFFER_SIZE 1500
 
 //array for testing. the real code starts at line 585
 char amazonBestsellers[550][7][210] = {{"Name", "Author", "User rating", "Reviews", "Price", "Year", "Genre"},
@@ -602,15 +602,15 @@ int main()
     int processes = 11;
     pid_t pids[processes]; //stores all the child pids
 
+
+    mqd_t server_qd, client_qd; //server queue descriptor
+
     struct mq_attr attr = {
         .mq_flags = 0,
         .mq_maxmsg = MAX_MESSAGES,
         .mq_msgsize = MAX_MSG_SIZE,
         .mq_curmsgs = 0, //num messages on queue
     };
-
-    mqd_t server_qd, client_qd; //server queue descriptor
-
 
     //forks() for total number of processes - all are the child of the same parent
     for (int i = 0; i < processes; i++) {
@@ -626,37 +626,39 @@ int main()
             //creates client name in format '/process'
             char client_name[64];
             sprintf(client_name, "/%s", uniques[i]);
-            printf("%s\n", client_name);
-
+            //printf("%s\n", client_name);
 
             //open client
-            if (client_qd = mq_open(client_name, O_RDWR | O_CREAT, PERMISSIONS, &attr) == -1) {
+            if ((client_qd = mq_open(client_name, O_RDWR | O_CREAT, PERMISSIONS, &attr)) == -1) {
                 perror("Child: mq_open client\n");
                 exit(1);
             }
 
             //open server
-            if (server_qd = mq_open(QUEUE_NAME, O_RDWR) == -1) {
+            if ((server_qd = mq_open(QUEUE_NAME, O_RDWR)) == -1) {
                 perror("Child: mq_open server\n");
                 exit(1);
             }
 
-            char in_buffer[MSG_BUFFER_SIZE];
+            char in_buffer[MSG_BUFFER_SIZE + 20];
 
             //idea is to have loop until no more messages
-            while (1) {
+
+            while (strcmp(in_buffer, "quit") != 0) {
                 if (mq_receive(client_qd, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
+                    printf("IN_BUF: %s, MSGBUFSIZE: %i, PERROR %i\n", in_buffer, MSG_BUFFER_SIZE, i);
                     perror("Child: mq_receive\n");
                     exit(1);
                 }
 
                 printf("Result: %s\n", in_buffer);
-            }
 
-            if (mq_close (client_qd) == -1) {
-                perror("Child: mq_close");
-                exit(1);
+
             }
+            if (mq_close(client_qd) == -1) {
+                    perror("Child: mq_close");
+                    exit(1);
+                }
 
             if (mq_unlink(client_name) == -1) {
                 perror("Child: mq_unlinK");
@@ -671,10 +673,8 @@ int main()
 
     //only parent process can access these lines
 
-
-
     //creates the server (parent)
-    if ((server_qd = mq_open(QUEUE_NAME, O_RDWR | O_CREAT, PERMISSIONS, &attr)) == -1) {
+    if (server_qd = mq_open(QUEUE_NAME, O_RDWR | O_CREAT, PERMISSIONS, &attr) == -1) {
         perror("Server: mq_open server");
         exit(1);
     }
@@ -701,27 +701,66 @@ int main()
                 //creates child/client name
                 char client_name[64];
                 sprintf(client_name, "/%s", uniques[j]);
-                printf("%s\n", client_name);
+                //printf("%s\n", client_name);
 
                 //open child based on child name
-                if (client_qd = mq_open(client_name, O_RDWR) == -1) {
+                if ((client_qd = mq_open(client_name, O_RDWR)) == -1) {
                     perror("Parent: mq_open client\n");
                     exit(1);
                 }
 
                 //temporary buffer - eventually will send the whole row
                 char out_buffer[MSG_BUFFER_SIZE];
-                sprintf(out_buffer, "I: %i J: %i", i, j);
+                sprintf(out_buffer, "%s %s %s %s %s %s %s", amazonBestsellers[i][0], amazonBestsellers[i][1], amazonBestsellers[i][2],
+                amazonBestsellers[i][3], amazonBestsellers[i][4], amazonBestsellers[i][5], amazonBestsellers[i][6]);
+
+                //printf("%s\n", out_buffer);
 
                 //sends buffer to client process
                 if (mq_send(client_qd, out_buffer, strlen(out_buffer) + 1, 0) == -1) {
+                    printf("%s\n", out_buffer);
                     perror("Parent: mq_send\n");
                     exit(1);
                 }
+
             }
         }
     }
 
+    for (int i = 0; i < processes; i++) {
+        char client_name[64];
+                sprintf(client_name, "/%s", uniques[i]);
+                //printf("%s\n", client_name);
+
+                //open child based on child name
+                if ((client_qd = mq_open(client_name, O_RDWR)) == -1) {
+                    perror("Parent: mq_open client\n");
+                    exit(1);
+                }
+
+                //temporary buffer - eventually will send the whole row
+                char out_buffer[MSG_BUFFER_SIZE];
+                sprintf(out_buffer, "quit");
+
+                //printf("%s\n", out_buffer);
+
+                //sends buffer to client process
+                if (mq_send(client_qd, out_buffer, strlen(out_buffer) + 1, 0) == -1) {
+                    printf("%s\n", out_buffer);
+                    perror("Parent: mq_send\n");
+                    exit(1);
+                }
+    }
+
+    if ((mq_close (server_qd)) == -1) {
+        perror("Child: mq_close");
+        exit(1);
+    }
+
+    if ((mq_unlink(QUEUE_NAME)) == -1) {
+        perror("Child: mq_unlinK");
+        exit(1);
+    }
     //prints out all processes and their ids (no longer executes because server/clients are having issues)
     for (int i = 0; i < processes; i++) {
         printf("Process %d (pid = %d)\n", i, pids[i]);
