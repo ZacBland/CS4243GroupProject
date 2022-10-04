@@ -49,18 +49,36 @@ int main()
         token = strtok(NULL, ",");
     }
 
+    char input[20];
+
     printf("\nPlease enter one of the options:\n");  //Taking the User input for the option selected
-    scanf("%s", data);
-    send(clientSock, data, strlen(data), 0);
+    scanf("%s", input);
+    send(clientSock, input, strlen(input), 0);
 
     recv(clientSock, buffer, 1024, 0);
     printf("\n\n%s\n", buffer);
-
-    char input[20];
-    printf("Please enter one of the options:\n");  //Taking the User input for the option selected
-    scanf("%s", &input);
     
+    input[0] = '\0';
+    printf("Please enter one of the options:\n");  //Taking the User input for the option selected
+    scanf("%s", input);
     send(clientSock, input, strlen(input), 0);
+
+    while(1){
+        input[0] = '\0';
+        printf("\nPlease select option:\n");
+        printf("1. Display the records\n");
+        printf("2. Save the records\n");
+        printf("3. Display the summary\n");
+        printf("4. Exit\n");
+        printf(">> ");
+        scanf("%s", input);
+        printf("\n\n");
+
+        send(clientSock, input, strlen(input), 0);
+
+        if(atoi(input) == 4)
+            break;
+    }
 
     return 0;
 }

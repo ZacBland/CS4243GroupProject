@@ -48,8 +48,10 @@ int main()
         if (clientSock < 0) {
             exit(1);
         }
+
         printf("Accepted connection from %s:%d\n",inet_ntoa(clientAddress.sin_addr),ntohs(clientAddress.sin_port));
         printf("Number of clients: %d \n\n",++numClients);
+
         if ((childPid = fork()) == 0) {
             close(serverSock);
 
@@ -58,6 +60,7 @@ int main()
             char data[100];
             char options[100][100],opt[100][100];
             filePointer = fopen("options.txt", "r") ; //Opening the Options.txt file
+        
             if(filePointer == NULL)
             {
                     printf("File cant be opened");
@@ -71,7 +74,8 @@ int main()
                         strcpy(options[i],data); //storing it in the options array. and the first element in the array contains the options that needs to be sent to the client
                         i++;
                 }
-            }	
+            }
+
             printf("Sending options to the client \n");
             send(clientSock, options[0], sizeof(options[0]), 0);  //sending the options to the client
             printf("Waiting for the Client feedback \n");
@@ -87,17 +91,19 @@ int main()
                 char column_names[50] = "Book category, Star rating, Stock";
                 char column_option[100];
 
-                write(clientSock,column_names,sizeof(column_names));
+                write(clientSock,column_names, sizeof(column_names));
                 printf("Waiting for column options\n");
-                read(clientSock, column_option, sizeof(column_option));
-                printf("%s \n",column_option);
+
+                bzero(buffer, sizeof(buffer));
+                recv(clientSock, buffer, 1024, 0);
+                printf("%s\n",buffer);
 
                 readFile("bookInfo.txt", 6);
-                if((strcmp(column_option,"Book category")==0)||(strcmp(column_option,"Book")==0))
+                if((strcmp(buffer,"Book category")==0)||(strcmp(buffer,"Book")==0))
                     process(703, 6, 1, 43);
-                else if((strcmp(column_option,"Star rating")==0)||(strcmp(column_option,"Star")==0))
+                else if((strcmp(buffer,"Star rating")==0)||(strcmp(buffer,"Star")==0))
                     process(703, 6, 2, 5);
-                else if(strcmp(column_option,"Stock") == 0)
+                else if(strcmp(buffer,"Stock") == 0)
                     process(703, 6, 4, 2);
                 else
                     printf("Incorrect category.\n");
@@ -108,28 +114,49 @@ int main()
                 char column_option[100];
                 write(clientSock, column_names, sizeof(column_names));
                 printf("Waiting for column options\n");
-                read(clientSock, column_option, sizeof(column_option));
-                printf("%s \n",column_option);
+                recv(clientSock, buffer, 1024, 0);
+                printf("%s\n",buffer);
 
                 readFile("amazonBestsellers.txt", 7);
-                if((strcmp(column_option,"User rating") == 0)||(strcmp(column_option,"User") == 0))
+                if((strcmp(buffer,"User rating") == 0)||(strcmp(buffer,"User") == 0))
                     process(550, 7, 2, 10);
-                else if(strcmp(column_option,"Year") == 0)
+                else if(strcmp(buffer,"Year") == 0)
                     process(550, 7, 5, 11);
-                else if(strcmp(column_option,"Genre") == 0)
+                else if(strcmp(buffer,"Genre") == 0)
                     process(550, 7, 6, 2);
                 else
                     printf("Incorrect category.\n");
 
-                // if msg contains "Exit" then server exit and chat ended.
-                if (strncmp("exit", buffer, 4) == 0) {
-                    printf("Server Exit...\n");
+            }
+
+            //Menu Loop
+            while(1){
+                bzero(buffer, sizeof(buffer));
+                recv(clientSock, buffer, 1024, 0);
+                printf("Option: %s\n", buffer);
+                
+                int input = atoi(buffer);
+                if(input == 1){
+                    printf("option 1\n");
+                }
+                else if(input == 2){
+                    printf("option 2\n");
+                }
+                else if(input == 3){
+                    printf("option 3\n");
+                }
+                else if(input == 4){
                     break;
                 }
-
+                else{
+                    continue;
+                }
+                
             }
-        }
+            close(clientSock);
+            numClients--;
         
+        }
     }
     // Close the client socket id
     close(clientSock);

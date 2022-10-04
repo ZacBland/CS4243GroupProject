@@ -4,7 +4,13 @@
 
 int main()
 {
-
+    int fd[2];
+    char buffer[20];
+    if(pipe(fd) < 0){
+        perror("pipe");
+        exit(1);
+    }
+    
     while(1){
         int input;
         printf("\nPlease select option:\n");
