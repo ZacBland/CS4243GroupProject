@@ -359,7 +359,6 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
             printf("OPTION 2\n");
         }
         else if(option == 3){
-            printf();
             printf("OPTION 3\n");
         }
         else{
