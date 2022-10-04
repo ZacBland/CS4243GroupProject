@@ -16,6 +16,7 @@ This file currently has these primary functions:
 compile: gcc process.c -lrt
 execute: ./a.out
 
+tested all options succesfully in csx2
 */
 
 #include <stdio.h>
