@@ -17,17 +17,34 @@ Future functionality:
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#include <time.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <mqueue.h>
+
+#define QUEUE_NAME "/Queue-3-test"
+#define PERMISSIONS 0660
+#define MAX_MESSAGES 5
+#define MAX_MSG_SIZE 210
+#define MSG_BUFFER_SIZE 220
 
 typedef char* String;
 
 char bookInfo[703][6][210];
 char amazonBestsellers[550][7][210];
 
-//readFile method that reads specified input file and stores in static-sized array
+int processCreation(int processes, int location, char* values[], int sizes[], int rows, int cols);
+
 void readFile(char inputFile[25], int cols) {
 
     char (*array)[cols][210];
-    if (cols == 6) array = bookInfo; //determines which matrix to store in
+    if (cols == 6) array = bookInfo;
     else array = amazonBestsellers;
 
     FILE* f;
@@ -44,27 +61,36 @@ void readFile(char inputFile[25], int cols) {
     int col = 0;
 
     char str[210];
-    //do-while loop reads file character by character, parses it, and stores whole column in array
     do {
         ch = fgetc(f);
         if (ch == '"') {
-            count = count + 1; //counter to tell if reading inside a quotation so it will treat commas as normal characters
+            //printf("TEST 1\n");
+            count = count + 1;
             strncat(str, &ch, 1);
         } else if (ch == ',') {
-            if (count % 2 == 1) { //comma used in quotation
+            //printf("TEST 2\n");
+            if (count % 2 == 1) {
                 strncat(str, &ch, 1);
-            } else { //comma used to separate columns
+            } else {
+                //printf("%s\n", str);
                 sprintf(array[row][col], "%s", str);
+                //printf("%s\n", bookInfo[row][col]);
+                //printf("TEST $\n");
                 memset(str, 0, 210);
                 col++;
             }
-        } else if (ch == '\n') { //end of row
+        } else if (ch == '\n') {
+            //printf("TEST 3\n");
+            //printf("%s\n", str);
             sprintf(array[row][col], "%s", str);
+            //printf("%s\n", bookInfo[row][col]);
             memset(str, 0, 210);
             col = 0;
             row++;
-        } else { //normal character
+        } else {
+            //printf("TEST 4\n");
             strncat(str, &ch, 1);
+           //printf("TEST 5\n");
         }
     } while (ch != EOF);
 
@@ -83,7 +109,7 @@ int process(int rows, int columns, int col, int processes) {
     else array = amazonBestsellers;
 
     //creates arrays to store category/process name (example: each book genre or year) and the number of items per category
-    String category[processes];
+    char* category[processes];
     int amount[processes];
 
     //initializes the new arrays
@@ -114,19 +140,216 @@ int process(int rows, int columns, int col, int processes) {
         }
         flag = 0; //clears flag for next row
     }
-
     //prints unique categories and number of items associated (TEMP)
     for (int k = 0; k < processes; k++) {
         printf("%s %d\n", category[k], amount[k]);
+
     }
 
-
-    //now start dividing up into processes and print those items:
+    int test = processCreation(processes, col, category, amount, rows, columns);
 
 
     return 0;
 
 }
+
+
+int processCreation(int processes, int location, char* values[], int sizes[], int rows, int cols)
+{
+
+    char (*array)[cols][210];
+    if (cols == 6) array = bookInfo;
+    else array = amazonBestsellers;
+
+    //creates 11 child processes
+
+    pid_t pids[processes]; //stores all the child pids
+
+
+    mqd_t server_qd, client_qd; //server queue descriptor
+
+    struct mq_attr attr = {
+        .mq_flags = 0,
+        .mq_maxmsg = MAX_MESSAGES,
+        .mq_msgsize = MAX_MSG_SIZE,
+        .mq_curmsgs = 0, //num messages on queue
+    };
+
+    //forks() for total number of processes - all are the child of the same parent
+    for (int i = 0; i < processes; i++) {
+
+        if ((pids[i] = fork()) < 0) {
+            perror("Fork failed.\n");
+            exit(1);
+        }
+
+        else if (pids[i] == 0) { //child
+
+            //array for storing contents of rows
+            char list[sizes[i]][cols][210];
+
+            //creates client name in format '/process'
+            char client_name[64];
+            sprintf(client_name, "/%s", values[i]);
+
+            //open client
+            if ((client_qd = mq_open(client_name, O_RDWR | O_CREAT, PERMISSIONS, &attr)) == -1) {
+                perror("Child: mq_open client\n");
+                exit(1);
+            }
+
+            sleep(1); //allows time for server to open
+
+            //open server
+            if ((server_qd = mq_open(QUEUE_NAME, O_RDWR | O_NONBLOCK)) == -1) {
+                perror("Child: mq_open server\n");
+                exit(1);
+            }
+
+            char in_buffer[MSG_BUFFER_SIZE];
+
+            int row = 0;
+            int col = 0;
+
+            //loops until server says to stop
+            while (strcmp(in_buffer, "quit") != 0) {
+
+                //receives message from server
+                if (mq_receive(client_qd, in_buffer, MSG_BUFFER_SIZE, NULL) == -1) {
+                    printf("IN_BUF: %s, MSGBUFSIZE: %i, PERROR %i\n", in_buffer, MSG_BUFFER_SIZE, i);
+                    perror("Child: mq_receive\n");
+                    exit(1);
+                }
+
+                //adds to matrix unless closing message
+                if (strcmp(in_buffer, "quit") != 0) {
+                    sprintf(list[row][col], "%s", in_buffer);
+
+                    //increments placement in columns and rows
+                    if (col < cols - 1) {
+                        //printf("%s %s %d %d\n", client_name, in_buffer, row, col);
+                        col ++;
+                    }
+                    else {
+                        col = 0;
+                        row ++;
+
+                    }
+                }
+            }
+
+            //test for printing: REMOVE
+            for (int a = 0; a < row; a++) {
+                for (int b = 0; b < cols; b++) {
+                    printf("%s %d %d %s\n", client_name, a, b, list[a][b]);
+                }
+            }
+
+            printf("%s closing\n", client_name);
+            if (mq_close(client_qd) == -1) {
+                    perror("Child: mq_close\n");
+                    exit(1);
+                }
+
+            if (mq_unlink(client_name) == -1) {
+                perror("Child: mq_unlinK\n");
+                exit(1);
+            }
+
+            return(0);
+        }
+    }
+
+
+    //PARENT PROCESS SECTION
+
+    //creates the server (parent)
+    if (server_qd = mq_open(QUEUE_NAME, O_RDWR | O_CREAT | O_NONBLOCK, PERMISSIONS, &attr) == -1) {
+        perror("Server: mq_open server\n");
+        exit(1);
+    }
+
+    sleep(1); //required to ensure all forks and clients open before using them! DO NOT CHANGE
+
+
+    //loops through rows in array
+    for (int i = 1; i < rows; i++) {
+
+        //loops through unique values in columns to send data to specific process
+        for (int j = 0; j < processes; j++) {
+
+            //locates which process corresponds to the current row
+            if (strcmp(array[i][location], values[j]) == 0) {
+
+                //creates child/client name
+                char client_name[64];
+                sprintf(client_name, "/%s", values[j]);
+
+
+                //open child based on child name
+                if ((client_qd = mq_open(client_name, O_RDWR)) == -1) {
+                    perror("Parent: mq_open client\n");
+                    exit(1);
+                }
+
+                //sends data from all columns to corresponding child process
+                for (int k = 0; k < cols; k++) {
+                    char out_buffer[MSG_BUFFER_SIZE];
+                    sprintf(out_buffer, "%s", amazonBestsellers[i][k]);
+
+                    //send info to client
+                    if (mq_send(client_qd, out_buffer, strlen(out_buffer) + 1, 0) == -1) {
+                        perror("Parent: mq_send\n");
+                        exit(1);
+                    }
+                }
+            }
+        }
+    }
+
+    //sends message to terminate children
+    for (int i = 0; i < processes; i++) {
+        char client_name[64];
+        sprintf(client_name, "/%s", values[i]);
+
+        //open child based on child name
+        if ((client_qd = mq_open(client_name, O_RDWR)) == -1) {
+            perror("Parent: mq_open client\n");
+            exit(1);
+        }
+
+        char out_buffer[MSG_BUFFER_SIZE];
+        sprintf(out_buffer, "quit");
+
+        //sends quit message to child process
+        if (mq_send(client_qd, out_buffer, strlen(out_buffer) + 1, 0) == -1) {
+            printf("%s\n", out_buffer);
+            perror("Parent: mq_send\n");
+            exit(1);
+        }
+    }
+
+    wait(NULL); //ensures all children fully close
+
+    //closes server
+    if ((mq_close (server_qd)) == -1) {
+        perror("Parent: mq_close\n");
+        exit(1);
+    }
+
+    if ((mq_unlink(QUEUE_NAME)) == -1) {
+        perror("Parent: mq_unlink\n");
+        exit(1);
+    }
+
+    //prints out all processes and their ids
+    /*for (int i = 0; i < processes; i++) {
+        printf("Process %d (pid = %d)\n", i, pids[i]);
+    }*/
+
+    return 0;
+}
+
 
 int main() {
 
