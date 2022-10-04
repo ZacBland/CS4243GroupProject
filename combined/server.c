@@ -50,7 +50,8 @@ int main()
         }
         printf("Accepted connection from %s:%d\n",inet_ntoa(clientAddress.sin_addr),ntohs(clientAddress.sin_port));
         printf("Number of clients: %d \n\n",++numClients);
-        if ((childPid = fork()) == 0) {
+        if ((childPid = fork()) == 0) 
+        {
             close(serverSock);
 
             //previously use #define MAX 200, in the #include section of the file
@@ -94,11 +95,11 @@ int main()
 
                 readFile("bookInfo.txt", 6);
                 if((strcmp(column_option,"Book category")==0)||(strcmp(column_option,"Book")==0))
-                    process(703, 6, 1, 43);
+                    processSetup(703, 6, 1, 43);
                 else if((strcmp(column_option,"Star rating")==0)||(strcmp(column_option,"Star")==0))
-                    process(703, 6, 2, 5);
+                    processSetup(703, 6, 2, 5);
                 else if(strcmp(column_option,"Stock") == 0)
-                    process(703, 6, 4, 2);
+                    processSetup(703, 6, 4, 2);
                 else
                     printf("Incorrect category.\n");
 
@@ -113,11 +114,11 @@ int main()
 
                 readFile("amazonBestsellers.txt", 7);
                 if((strcmp(column_option,"User rating") == 0)||(strcmp(column_option,"User") == 0))
-                    process(550, 7, 2, 10);
+                    processSetup(550, 7, 2, 10);
                 else if(strcmp(column_option,"Year") == 0)
-                    process(550, 7, 5, 11);
+                    processSetup(550, 7, 5, 11);
                 else if(strcmp(column_option,"Genre") == 0)
-                    process(550, 7, 6, 2);
+                    processSetup(550, 7, 6, 2);
                 else
                     printf("Incorrect category.\n");
 
@@ -128,6 +129,10 @@ int main()
                 }
 
             }
+            printf("Here!");
+            char userMenu[50] = "1. Display the records \n2. Save the records \n3. Display the summary\n4. Exit \n\n";
+            write(clientSock,userMenu,sizeof(userMenu));
+            printf("Waiting for user command\n");
         }
         
     }
