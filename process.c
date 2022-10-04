@@ -18,10 +18,24 @@ execute: ./a.out
 
 tested all options succesfully in csx2
 */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#include <time.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <mqueue.h>
+
+#define QUEUE_NAME "/Queue-3-test"
+#define PERMISSIONS 0660
+#define MAX_MESSAGES 5
+#define MAX_MSG_SIZE 210
+#define MSG_BUFFER_SIZE 220
 
 typedef char* String;
 
