@@ -123,8 +123,11 @@ int main()
             else if(strcmp(buffer,"amazonBestsellers.txt")==0){
                 char column_names[50] = "User rating, Year, Genre";
                 char column_option[100];
+
                 write(clientSock, column_names, sizeof(column_names));
                 printf("Waiting for column options\n");
+
+                bzero(buffer, sizeof(buffer));
                 recv(clientSock, buffer, 1024, 0);
                 printf("%s\n",buffer);
 
@@ -159,7 +162,9 @@ int main()
                 }while(count <= 0);
                 
                 buffer[count] = '\0';
-                printf( "Server read from process: %s\n", buffer);
+
+                //print result from process
+                write(clientSock, buffer, sizeof(buffer));
 
                 if(input > 3 && input < 1){
                     break;

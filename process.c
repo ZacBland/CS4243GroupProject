@@ -348,11 +348,10 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
         }
     }
     
-
+    //PIPE INTERCOMMUNICATION
     close(fin[1]);
     close(fout[0]);
 
-    //PIPE INTERCOMMUNICATION
     char buffer[20];
     ssize_t count;
     while(1){
@@ -365,25 +364,29 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
         buffer[count] = '\0';
         printf( "Process read from server: %s\n", buffer);
         
+        //Do option based on choice from client given by server
+        char str[1024];
+
         int option = atoi(buffer);
         if(option == 1){
-            printf("OPTION 1\n");
+            sprintf(str, "OPTION 1");
         }
         else if(option == 2){
-            printf("OPTION 2\n");
+            sprintf(str, "OPTION 2");
         }
         else if(option == 3){
-            printf("OPTION 3\n");
+            int book_total = 0;
+            for(int i = 0; i < processes; i++){
+                book_total += sizes[i];
+            }
+            sprintf(str, "Total number of books: %d", book_total);
         }
         else{
             break;
         }
 
-        //SEND CONFIRMATION MESSAGE
-        char out_mess[6] = "TEST";
-
-        size_t length = strlen( out_mess );
-        write( fout[1], out_mess, length );
+        size_t length = strlen(str);
+        write(fout[1], str, length);
         
     }
 

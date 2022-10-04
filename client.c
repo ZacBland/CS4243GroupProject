@@ -67,19 +67,23 @@ int main()
 
     while(1){
         input[0] = '\0';
-        printf("\nPlease select option:\n");
+        printf("\n\nPlease select option:\n");
         printf("1. Display the records\n");
         printf("2. Save the records\n");
         printf("3. Display the summary\n");
         printf("4. Exit\n");
         printf(">> ");
         scanf("%s", input);
-        printf("\n\n");
+        printf("\n");
 
         send(clientSock, input, strlen(input), 0);
 
         if(atoi(input) == 4)
             break;
+
+        bzero(buffer, sizeof(buffer));
+        recv(clientSock, buffer, 1024, 0);
+        printf("%s\n", buffer);
     }
 
     return 0;
