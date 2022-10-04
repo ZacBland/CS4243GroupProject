@@ -127,12 +127,14 @@ int main()
                     printf("Server Exit...\n");
                     break;
                 }
-
+                
             }
-            printf("Here!");
-            char userMenu[50] = "1. Display the records \n2. Save the records \n3. Display the summary\n4. Exit \n\n";
+            char userMenu[100] = "1. Display the records \n2. Save the records \n3. Display the summary\n4. Exit \n\n";
             write(clientSock,userMenu,sizeof(userMenu));
             printf("Waiting for user command\n");
+            /*bzero(buffer, sizeof(buffer));
+            recv(clientSock, buffer, 1024, 0);
+            printf("Response: %s \n\n", buffer);*/
         }
         
     }

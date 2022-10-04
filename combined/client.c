@@ -62,9 +62,13 @@ int main()
     
     send(clientSock, input, strlen(input), 0);
 
-   /* recv(clientSock, buffer, 1024, 0);
     bzero(buffer, sizeof(buffer));
-    printf("%s\n", buffer);*/
+    recv(clientSock, buffer, 1024, 0);
+    printf("%s\n", buffer);
+
+    /*bzero(input, sizeof(input));
+    scanf("%s", &input);
+    send(clientSock, input, strlen(input), 0);*/
 
     return 0;
 }

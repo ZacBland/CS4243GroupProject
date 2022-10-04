@@ -156,8 +156,6 @@ int processSetup(int rows, int columns, int col, int processes) {
         printf("%s %d\n", category[k], amount[k]);
 
     }
-
-    printf("here! \n");
     int test = processCreation(processes, col, category, amount, rows, columns);
 
 
@@ -257,11 +255,11 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
             }
 
             //test for printing: REMOVE
-            for (int a = 0; a < row; a++) {
+           /* for (int a = 0; a < row; a++) {
                 for (int b = 0; b < cols; b++) {
                     printf("%s %d %d %s\n", client_name, a, b, list[a][b]);
                 }
-            }
+            }*/
 
             printf("%s closing\n", client_name);
             if (mq_close(client_qd) == -1) {
@@ -322,9 +320,7 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
                 }
             }
         }
-        printf("here 2! \n");
     }
-    printf("here 3! \n");
    
      
     //sends message to terminate children
