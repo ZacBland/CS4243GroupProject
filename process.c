@@ -5,16 +5,19 @@ Email: blake.barton@okstate.edu
 Date: 9/25/22
 Description:
 
-This file currently has three primary functions:
+This file currently has these primary functions:
 1 - take user input on which input file and column (temporary)
-2 - read the input file and save them into an array
-3 - traverse array and find unique values in column and count occurence of each
+2 - read the input file and save them into an array [readFile()]
+3 - traverse array and find unique values in column and count occurence of each [processSetup()]
+4 - create parallel processes - one for each unique value in column [processCreation()]
+5 - send row data to each process based on its unique value [processCreation()]
+6 - closes parallel processes [processCreation()] (will likely need to be changed for the menu options)
 
-Future functionality:
-1 - create process for each unique value
-2 - communicate server to clients using message queue
+compile: gcc process.c -lrt
+execute: ./a.out
 
 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +44,10 @@ char amazonBestsellers[550][7][210];
 
 int processCreation(int processes, int location, char* values[], int sizes[], int rows, int cols);
 
+/* readFile()
+desc: reads the input file and parses data and stores in either bookInfo[][][] or amazonBestsellers[][][] based on file
+input: file name, # of columns from file
+*/
 void readFile(char inputFile[25], int cols) {
 
     char (*array)[cols][210];
@@ -97,11 +104,14 @@ void readFile(char inputFile[25], int cols) {
     fclose(f);
 }
 
-
-//Process function will look at the selected column and divide it up by unique categories
-//Currently just prints off unique names and how many items are in that category
-//Eventually will split them into processes (work in progress)
-int process(int rows, int columns, int col, int processes) {
+/* processSetup()
+desc: looks at the users selected column and divides it up by unique categories
+it collects the names of each unique value and the number of times it occurs
+then it calls processCreation() to create the new processes and communicate via message queue
+input: # of rows, # of columns, user specified column, # of unique processes
+output: 0
+*/
+int processSetup(int rows, int columns, int col, int processes) {
 
     //selects file array to read from
     char (*array)[columns][210];
@@ -153,7 +163,12 @@ int process(int rows, int columns, int col, int processes) {
 
 }
 
-
+/* processCreation()
+desc: creates child processes for each unique value within user's column
+also sends row data from the parent to the corresponding child processes using POSIX message queue
+input: # of processes, user specified column, array of unique value names, array of occurence of each unique value, # of rows, # of columns
+output: 0
+*/
 int processCreation(int processes, int location, char* values[], int sizes[], int rows, int cols)
 {
 
@@ -363,11 +378,11 @@ int main() {
 
         readFile("bookInfo.txt", 6);
         if (strcmp(input, "Book") == 0) {
-            process(703, 6, 1, 43);
+            processSetup(703, 6, 1, 43);
         } else if (strcmp(input, "Star") == 0) {
-            process(703, 6, 2, 5);
+            processSetup(703, 6, 2, 5);
         } else if (strcmp(input, "Stock") == 0) {
-            process(703, 6, 4, 2);
+            processSetup(703, 6, 4, 2);
         } else printf("Incorrect category.\n");
 
     } else if (strcmp(input, "amazonBestsellers.txt") == 0) {
@@ -376,11 +391,11 @@ int main() {
 
         readFile("amazonBestsellers.txt", 7);
         if (strcmp(input, "User") == 0) {
-            process(550, 7, 2, 10);
+            processSetup(550, 7, 2, 10);
         } else if (strcmp(input, "Year") == 0) {
-            process(550, 7, 5, 11);
+            processSetup(550, 7, 5, 11);
         } else if (strcmp(input, "Genre") == 0) {
-            process(550, 7, 6, 2);
+            processSetup(550, 7, 6, 2);
         } else printf("Incorrect category.\n");
 
     } else {
