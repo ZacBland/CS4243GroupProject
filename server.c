@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
+
 
 #include "process.h"
 
@@ -58,7 +60,7 @@ int main()
             //previously use #define MAX 200, in the #include section of the file
             FILE *filePointer ;
             char data[100];
-            char options[100][100],opt[100][100];
+            char options[100][100];
             filePointer = fopen("options.txt", "r") ; //Opening the Options.txt file
         
             if(filePointer == NULL)
@@ -85,22 +87,19 @@ int main()
             recv(clientSock, buffer, 1024, 0);
             printf("Response: %s \n\n", buffer);
             
+            //Create Pipes
             int fin[2];
             int fout[2];
-            if(pipe(fin) < 0){
-                perror("pipe");
-                exit(1);
-            }
-            if(pipe(fout) < 0){
+            if(pipe(fin) < 0 || pipe(fout) < 0){
                 perror("pipe");
                 exit(1);
             }
             
             // print buffer which contains the client contents
-            if(strcmp(buffer,"bookInfo.txt")==0){
+            int option = atoi(buffer);
+            if(option == 1){
 
-                char column_names[50] = "Book category, Star rating, Stock";
-                char column_option[100];
+                char column_names[50] = "Book category,Star rating,Stock";
 
                 write(clientSock,column_names, sizeof(column_names));
                 printf("Waiting for column options\n");
@@ -109,34 +108,35 @@ int main()
                 recv(clientSock, buffer, 1024, 0);
                 printf("%s\n",buffer);
 
+                option = atoi(buffer);
                 readFile("bookInfo.txt", 6);
-                if((strcmp(buffer,"Book category")==0)||(strcmp(buffer,"Book")==0))
+                if(option == 1)
                     processSetup(703, 6, 1, 43, fin, fout);
-                else if((strcmp(buffer,"Star rating")==0)||(strcmp(buffer,"Star")==0))
+                else if(option == 2)
                     processSetup(703, 6, 2, 5, fin, fout);
-                else if(strcmp(buffer,"Stock") == 0)
+                else if(option == 3)
                     processSetup(703, 6, 4, 2, fin, fout);
                 else
                     printf("Incorrect category.\n");
 
             }
-            else if(strcmp(buffer,"amazonBestsellers.txt")==0){
+            else if(option == 2){
                 char column_names[50] = "User rating, Year, Genre";
-                char column_option[100];
 
                 write(clientSock, column_names, sizeof(column_names));
                 printf("Waiting for column options\n");
 
                 bzero(buffer, sizeof(buffer));
                 recv(clientSock, buffer, 1024, 0);
-                printf("%s\n",buffer);
+                printf("Response: %s\n",buffer);
+                option = atoi(buffer);
 
                 readFile("amazonBestsellers.txt", 7);
-                if((strcmp(buffer,"User rating") == 0)||(strcmp(buffer,"User") == 0))
+                if(option == 1)
                     processSetup(550, 7, 2, 10, fin, fout);
-                else if(strcmp(buffer,"Year") == 0)
+                else if(option == 2)
                     processSetup(550, 7, 5, 11, fin, fout);
-                else if(strcmp(buffer,"Genre") == 0)
+                else if(option == 3)
                     processSetup(550, 7, 6, 2, fin, fout);
                 else
                     printf("Incorrect category.\n");
@@ -146,35 +146,63 @@ int main()
             //Close unneccesary pipe ends
             close(fin[1]);
             close(fout[0]);
+            
+            //wait for processes to finish
+            char wait_buff[10];
+            read(fin[0], wait_buff, 10);
+            send(clientSock, "Ready", 10, 0);
 
+            char process_buff[4000];
             //Menu Loop
             while(1){
+                //recieve choice from user
                 bzero(buffer, sizeof(buffer));
+                memset(buffer, 0 , sizeof(buffer));
                 recv(clientSock, buffer, 1024, 0);
-                int input = atoi(buffer);
+                int option = atoi(buffer);
 
+                //write choice to process
                 size_t length = strlen( buffer );
                 write( fout[1], buffer, length );
-                
-                ssize_t count;
-                do{
-                    count = read(fin[0], buffer, sizeof(buffer)-1);
-                }while(count <= 0);
-                
-                buffer[count] = '\0';
 
-                //print result from process
-                write(clientSock, buffer, sizeof(buffer));
+                //read response from process
+                bzero(process_buff, sizeof(process_buff));
+                read(fin[0], process_buff, 4000);
 
-                if(input > 3 && input < 1){
+                //send result from process to client
+                send(clientSock, process_buff, sizeof(process_buff), 0);
+
+                if(option == 1){
+                    //wait for process list
+                    bzero(buffer, sizeof(buffer));
+                    recv(clientSock, buffer, 1024, 0);
+
+                    //write client choice to process
+                    length = strlen(buffer);
+                    write(fout[1], buffer, length);
+                    
+                    //read string array from process
+                    char arr[200][200];
+                    if(read(fin[0], arr, sizeof(sizeof(char) * 200) * 200) < 0){
+                        return 1;
+                    }
+
+                    //write string array to client
+                    if(write(clientSock, arr, sizeof(sizeof(char) * 200) * 200) < 0){
+                        return 3;
+                    }
+
+                }
+                else if(option > 3 && option < 1){
                     break;
                 }
                 
             }
-            close(clientSock);
-            numClients--;
+            
         
         }
+        close(clientSock);
+        numClients--;
     }
     // Close the client socket id
     close(clientSock);

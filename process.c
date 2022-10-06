@@ -31,6 +31,8 @@ tested all options succesfully in csx2
 #include <errno.h>
 #include <mqueue.h>
 
+#include "process.h"
+
 #define QUEUE_NAME "/Queue-3-test"
 #define PERMISSIONS 0660
 #define MAX_MESSAGES 5
@@ -157,7 +159,7 @@ int processSetup(int rows, int columns, int col, int processes, int *fout, int *
     */
 
     printf("processes running...\n");
-    int test = processCreation(processes, col, category, amount, rows, columns, fout, fin);
+    processCreation(processes, col, category, amount, rows, columns, fout, fin);
 
 
     return 0;
@@ -172,7 +174,7 @@ input: # of processes, user specified column, array of unique value names, array
 output: 0
 */
 int processCreation(int processes, int location, char* values[], int sizes[], int rows, int cols, int *fout, int *fin)
-{
+{   
 
     char (*array)[cols][210];
     if (cols == 6) array = bookInfo;
@@ -182,8 +184,13 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
 
     pid_t pids[processes]; //stores all the child pids
 
-
     mqd_t server_qd, client_qd; //server queue descriptor
+
+    int fd[2];
+    if(pipe(fd) < 0){
+        perror("pipe");
+        exit(1);
+    }
 
     struct mq_attr attr = {
         .mq_flags = 0,
@@ -201,6 +208,7 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
         }
 
         else if (pids[i] == 0) { //child
+            close(fd[0]);
 
             //array for storing contents of rows
             char list[sizes[i]][cols][210];
@@ -238,6 +246,7 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
                     exit(1);
                 }
 
+
                 //adds to matrix unless closing message
                 if (strcmp(in_buffer, "quit") != 0) {
                     sprintf(list[row][col], "%s", in_buffer);
@@ -253,15 +262,37 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
 
                     }
                 }
+                
             }
+            
+
             /*
             //test for printing: REMOVE
             for (int a = 0; a < row; a++) {
                 for (int b = 0; b < cols; b++) {
-                    printf("%s %d %d %s\n", client_name, a, b, list[a][b]);
+                    printf("Client: %s A: %d B: %d List: %s\n", client_name, a, b, list[a][b]);
                 }
+            }*/
+            
+            
+            char proc[200];
+            for(int r = 0; r < sizes[i]; r++){
+                sleep(0.01);
+                memset(proc,0,strlen(proc));
+                for(int c = 0; c < cols-1; c++){
+                    //if(c == location)
+                    //    continue;
+                    strcat(proc, list[r][c]);
+                    strcat(proc, ",");
+                }
+                strcat(proc, list[r][cols-1]);
+                size_t length = strlen(proc);
+                write(fd[1], proc, length);
             }
-            */
+            sleep(0.05);
+            char done[5] = "done";
+            size_t length = strlen(done);
+            write(fd[1], done, length);
 
             //printf("%s closing\n", client_name);
             if (mq_close(client_qd) == -1) {
@@ -282,7 +313,7 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
     //PARENT PROCESS SECTION
 
     //creates the server (parent)
-    if (server_qd = mq_open(QUEUE_NAME, O_RDWR | O_CREAT | O_NONBLOCK, PERMISSIONS, &attr) == -1) {
+    if ((server_qd = mq_open(QUEUE_NAME, O_RDWR | O_CREAT | O_NONBLOCK, PERMISSIONS, &attr) == -1)) {
         perror("Server: mq_open server\n");
         exit(1);
     }
@@ -313,7 +344,8 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
                 //sends data from all columns to corresponding child process
                 for (int k = 0; k < cols; k++) {
                     char out_buffer[MSG_BUFFER_SIZE];
-                    sprintf(out_buffer, "%s", amazonBestsellers[i][k]);
+                    sprintf(out_buffer, "%s", array[i][k]);
+                    //printf("%s\n", out_buffer);
 
                     //send info to client
                     if (mq_send(client_qd, out_buffer, strlen(out_buffer) + 1, 0) == -1) {
@@ -326,7 +358,16 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
     }
 
 
+    char process_array[processes][200][200];
+    //char ***process_array;
+    //process_array = (char ***) calloc(processes, sizeof(char **));
+    //for(int i = 0; i < processes; i++){
+    //    process_array[i] = (char **) calloc(sizes[i], sizeof(char *));
+    //}
+
+
     //sends message to terminate children
+    char output[4000];
     for (int i = 0; i < processes; i++) {
         char client_name[64];
         sprintf(client_name, "/%s", values[i]);
@@ -346,14 +387,51 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
             perror("Parent: mq_send\n");
             exit(1);
         }
+        
+        //memset(process_str,0,strlen(process_str));
+        int row = 0;
+        while(1){
+            ssize_t count;
+            bzero(output, sizeof(output));
+            do{
+                count = read(fd[0], output, sizeof(output)-1);
+            }while(count <= 0);
+            output[count] = '\0';
+
+            //size_t length = strlen(output);
+            //process_array[i][row] = malloc(length * sizeof(char));
+            if(strcmp(output, "done") == 0){
+                break;
+            }
+            sprintf(process_array[i][row], output);
+            row++;
+        }
+        //sprintf(process_array[i], process_str);
+        
     }
+    
+    //printf("%s\n",process_array[0]);
+
+    /*
+    for(int i = 0; i < rows; i++){
+        for(int j = 0; j < cols; j++){
+            printf("%-40s ", array[i][j]);
+        }
+        printf("\n");
+    }
+    */
     
     //PIPE INTERCOMMUNICATION
     close(fin[1]);
     close(fout[0]);
+    close(fd[1]);
+    
+    //send message to server when ready
+    write(fout[1], "ready", 10);
 
     char buffer[20];
     ssize_t count;
+    char str[4000];
     while(1){
         //READ FROM SERVER
         bzero(buffer, sizeof(buffer));
@@ -362,34 +440,69 @@ int processCreation(int processes, int location, char* values[], int sizes[], in
         }while(count <= 0);
         
         buffer[count] = '\0';
-        printf( "Process read from server: %s\n", buffer);
         
         //Do option based on choice from client given by server
-        char str[1024];
-
+        memset(str,0,strlen(str));
         int option = atoi(buffer);
+        
+
         if(option == 1){
-            sprintf(str, "OPTION 1");
+            // Do option one
+
+            //Get list of processes
+            for(int i = 0; i < processes; i++){
+                char process_str[100];
+                sprintf(process_str, "%s\n", values[i]);
+                strcat(str, process_str);
+            }
+            //send process list through pipe
+            size_t length = strlen(str);
+            write(fout[1], str, length);
+
+            //read choice from client
+            read(fin[0], buffer, sizeof(buffer));
+
+            //find index of process
+            int choice;
+            for(int i = 0; i< processes; i++){
+                if(strcmp(values[i], buffer) == 0){
+                    choice = i;
+                    break;
+                }
+            }
+            
+            //copy process results into arr
+            char arr[200][200];
+            for(int i = 0; i < 200; i++){
+                strcpy(arr[i], process_array[choice][i]);
+            }
+            
+            //send array to server
+            if(write(fout[1], arr, sizeof(sizeof(char) * 200) * 200) < 0){
+                return 1;
+            }
+            
         }
         else if(option == 2){
             sprintf(str, "OPTION 2");
+            size_t length = strlen(str);
+            write(fout[1], str, length);
         }
         else if(option == 3){
-            int book_total = 0;
             for(int i = 0; i < processes; i++){
-                book_total += sizes[i];
+                char process_str[100];
+                sprintf(process_str, "%s : Total books = %d\n", values[i], sizes[i]);
+                strcat(str, process_str);
             }
-            sprintf(str, "Total number of books: %d", book_total);
+            size_t length = strlen(str);
+            write(fout[1], str, length);
         }
         else{
             break;
         }
 
-        size_t length = strlen(str);
-        write(fout[1], str, length);
         
     }
-
     
     //ensures all children fully close
     wait(NULL); 
