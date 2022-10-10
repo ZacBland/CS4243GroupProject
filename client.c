@@ -24,18 +24,23 @@ Tested on csx2
 int main()
 {
     system("clear");
+
+    //Initialize variables
     int clientSock;
     struct sockaddr_in serverAddress;
     char buffer[1024];
     int port = 5150;
     clientSock = socket(AF_INET, SOCK_STREAM, 0);
     socklen_t addrSize;
+    //Open socket
     if(clientSock < 0)
     {
         perror("[-] Socket error");
         exit(1);
     }
     printf("[+] TCP server socket created \n");
+
+    //Configure memory address
     memset(buffer, '\0', sizeof(buffer));
 
     memset(&serverAddress, '\0', sizeof(serverAddress));
