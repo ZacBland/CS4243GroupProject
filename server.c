@@ -1,3 +1,16 @@
+/*
+Group: B
+Name: Brennan Schlittler
+Email: brennan.schlittler@okstate.edu
+Date: 10/10/22
+Description:
+Starts a server and handles cient connections and communication
+
+compile: gcc -Wall server.c process.c -lrt -o server
+execute: ./server
+Tested on csx2
+*/
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -13,6 +26,7 @@
 
 int main()
 {
+    /Initialize values
     int port = 5150;
     int serverSock, clientSock;
     struct sockaddr_in serverAddress, clientAddress;
@@ -20,6 +34,7 @@ int main()
     char buffer[1024];
     pid_t childPid;
 
+    //create socket, error if it fails
     serverSock = socket(AF_INET, SOCK_STREAM, 0);
     if(serverSock< 0)
     {
@@ -28,12 +43,14 @@ int main()
     }
     printf("[+] TCP socket created successfully \n");
 
+    //Create buffer and update address
     memset(buffer, '\0', sizeof(buffer));
     memset(&serverAddress, '\0', sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(port);
     serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
 
+    //Bind scoket, error if it fails
     int bindingSuccess = bind(serverSock, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
     if(bindingSuccess < 0)
     {
@@ -41,20 +58,22 @@ int main()
         exit(1);
     }
 
+
+    //Wait for client to connect
     listen(serverSock, 3);
     printf("Waiting for connection \n");
     int numClients = 0;
 
     while (1) {
+
+        //Accept client connection
         clientSock = accept(serverSock, (struct sockaddr*)&clientAddress,&addrSize);
         if (clientSock < 0) {
             exit(1);
         }
 
-        printf("Accepted connection from %s:%d\n",inet_ntoa(clientAddress.sin_addr),ntohs(clientAddress.sin_port));
-        printf("Number of clients: %d \n\n",++numClients);
-
         if ((childPid = fork()) == 0) {
+            //Go into child process
             close(serverSock);
 
             //previously use #define MAX 200, in the #include section of the file

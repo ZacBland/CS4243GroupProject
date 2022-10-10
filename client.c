@@ -1,3 +1,15 @@
+/*
+Group: B
+Name: Brennan Schlittler
+Email: brennan.schlittler@okstate.edu
+Date: 10/10/22
+Description:
+Connects a client to the server (if the server is active) and processes input between the two
+
+compile: gcc client.c -o client
+execute: ./client
+Tested on csx2
+*/
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,18 +24,23 @@
 int main()
 {
     system("clear");
+
+    //Initialize variables
     int clientSock;
     struct sockaddr_in serverAddress;
     char buffer[1024];
     int port = 5150;
     clientSock = socket(AF_INET, SOCK_STREAM, 0);
     socklen_t addrSize;
+    //Open socket
     if(clientSock < 0)
     {
         perror("[-] Socket error");
         exit(1);
     }
     printf("[+] TCP server socket created \n");
+
+    //Configure memory address
     memset(buffer, '\0', sizeof(buffer));
 
     memset(&serverAddress, '\0', sizeof(serverAddress));
