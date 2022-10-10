@@ -1,3 +1,15 @@
+/*
+Group: B
+Name: Brennan Schlittler
+Email: brennan.schlittler@okstate.edu
+Date: 10/10/22
+Description:
+Connects a client to the server (if the server is active) and processes input between the two
+
+compile: gcc client.c -o client
+execute: ./client
+Tested on csx2
+*/
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>

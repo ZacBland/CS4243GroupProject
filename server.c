@@ -1,3 +1,16 @@
+/*
+Group: B
+Name: Brennan Schlittler
+Email: brennan.schlittler@okstate.edu
+Date: 10/10/22
+Description:
+Starts a server and handles cient connections and communication
+
+compile: gcc -Wall server.c process.c -lrt -o server
+execute: ./server
+Tested on csx2
+*/
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
