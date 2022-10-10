@@ -19,5 +19,7 @@ Eg: select 1 which displays the unique values of the column, choose any of them 
 
 If you want to exit, please select option4.
 
+Note: For option1 to display the records, there is some bug which is not letting stock and genre columns to display the records.
+
 
 
